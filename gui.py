@@ -13,6 +13,16 @@ from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QCloseEvent
 from converter_logic import convert_docx_to_pdf, process_and_merge_mixed_files
 
+def resource_path(relative_path):
+    """ Mendapatkan path absolut ke sumber daya, berfungsi untuk mode pengembangan dan PyInstaller """
+    try:
+        # PyInstaller membuat folder sementara dan menyimpan path di _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(os.path.dirname(__file__))
+
+    return os.path.join(base_path, relative_path)
+
 class ConversionWorker(QThread):
     progress = pyqtSignal(int)
     finished = pyqtSignal(bool, str)
@@ -45,7 +55,7 @@ class FileConverterApp(QMainWindow):
         self.setWindowTitle("VPDF - DOCX/PDF Utility")
         self.setGeometry(100, 100, 800, 600)
 
-        # Set background with logo blur
+        # Atur latar belakang jendela
         self._set_background()
 
         # Widget Utama dan Layout
@@ -69,13 +79,13 @@ class FileConverterApp(QMainWindow):
 
         # Logo
         self.logo_label = QLabel()
-        pixmap = QPixmap("assets/logo vibia.png")
+        logo_path = resource_path("assets/logo vibia.png")
+        pixmap = QPixmap(logo_path)
         if not pixmap.isNull():
-            scaled_pixmap = pixmap.scaled(60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            scaled_pixmap = pixmap.scaled(90,90, Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.logo_label.setPixmap(scaled_pixmap)
         else:
-            self.logo_label.setText("VPDF")
-            self.logo_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #333333;")
+            self.logo_label.hide()
         title_layout.addWidget(self.logo_label)
 
         self.main_layout.addLayout(title_layout)

@@ -11,5 +11,5 @@ if __name__ == '__main__':
         window.show()
         sys.exit(app.exec_())
     except Exception as e:
-        print(f"Error saat menjalankan aplikasi: {e}")
+        print(f"Error al ejecutar la aplicación: {e}")
         # Tambahkan notifikasi error jika perlu
