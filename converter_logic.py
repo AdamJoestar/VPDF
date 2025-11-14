@@ -1,26 +1,33 @@
 # converter_logic.py
 import os
 import shutil
-from docx2pdf import convert
+# Impor langsung dari modul spesifik untuk menghindari masalah metadata di PyInstaller
+try:
+    from docx2pdf import convert
+except ImportError:
+    try:
+        from docx2pdf.main import convert
+    except ImportError:
+        # Fallback untuk PyInstaller
+        import docx2pdf
+        convert = docx2pdf.convert
+
 from pypdf import PdfWriter, PdfReader
+
+# Coba impor pythoncom untuk menangani inisialisasi COM di thread
+try:
+    import pythoncom
+except ImportError:
+    pythoncom = None
 
 # PENTING: Untuk fungsi convert_docx_to_pdf, pastikan
 # Microsoft Word (Windows) atau LibreOffice (Linux/macOS) sudah terinstal.
 
-def convert_docx_to_pdf(input_path, output_dir, progress_callback=None):
-    """Mengkonversi file DOCX tunggal ke PDF."""
+def _perform_conversion(input_path, output_path):
+    """Fungsi internal yang hanya melakukan konversi tanpa manajemen COM."""
     try:
-        # Tentukan nama file output
-        filename = os.path.basename(input_path)
-        pdf_filename = filename.replace(".docx", ".pdf")
-        output_path = os.path.join(output_dir, pdf_filename)
-
         # Panggil fungsi konversi dari pustaka docx2pdf
         convert(input_path, output_path)
-
-        if progress_callback:
-            progress_callback(100)  # Set progress to 100% on completion
-
         return True, f"Berhasil konversi ke: {output_path}"
     except Exception as e:
         # Check if the error is related to MS Word not being installed
@@ -31,8 +38,34 @@ def convert_docx_to_pdf(input_path, output_dir, progress_callback=None):
             # Handle specific errors
             if "write" in error_str or "permission" in error_str:
                 return False, f"Konversi Gagal: Tidak dapat menulis file output. Periksa izin folder dan pastikan file tidak sedang digunakan oleh aplikasi lain."
+            # Menambahkan penanganan error COM secara spesifik
+            elif "com" in error_str or "dispatch" in error_str:
+                 return False, f"Konversi Gagal: Terjadi masalah komunikasi dengan MS Word. Pastikan aplikasi tidak sibuk dan coba lagi."
             else:
                 return False, f"Konversi Gagal: {str(e)}"
+
+def convert_docx_to_pdf(input_path, output_dir, progress_callback=None):
+    """Mengkonversi file DOCX tunggal ke PDF."""
+    try:
+        # Inisialisasi COM untuk thread ini, penting untuk aplikasi yang di-build
+        if pythoncom:
+            pythoncom.CoInitialize()
+
+        # Tentukan nama file output
+        filename = os.path.basename(input_path)
+        pdf_filename = filename.replace(".docx", ".pdf")
+        output_path = os.path.join(output_dir, pdf_filename)
+
+        success, message = _perform_conversion(input_path, output_path)
+
+        if success and progress_callback:
+            progress_callback(100)  # Set progress to 100% on completion
+
+        return success, message
+    finally:
+        # Pastikan untuk melepaskan COM setelah selesai
+        if pythoncom:
+            pythoncom.CoUninitialize()
 
 def merge_pdfs(file_list, output_path):
     """Menggabungkan daftar file PDF menjadi satu file PDF."""
@@ -68,6 +101,11 @@ def merge_pdfs(file_list, output_path):
 def process_and_merge_mixed_files(file_list, output_path):
     """Menangani daftar file campuran (DOCX dan PDF) untuk digabungkan."""
     
+    # Inisialisasi COM untuk thread ini, penting untuk konversi DOCX di dalamnya
+    com_initialized = False
+    if pythoncom:
+        pythoncom.CoInitialize()
+        com_initialized = True
     # 1. Siapkan folder sementara untuk file DOCX yang dikonversi
     temp_dir = "temp_pdf_files"
     os.makedirs(temp_dir, exist_ok=True)
@@ -84,11 +122,12 @@ def process_and_merge_mixed_files(file_list, output_path):
                 pdf_files_to_merge.append(input_path)
             elif input_path.lower().endswith(".docx"):
                 # Jika DOCX, konversi ke folder sementara
-                docx_success, msg = convert_docx_to_pdf(input_path, temp_dir)
+                pdf_filename = os.path.basename(input_path).replace(".docx", ".pdf")
+                temp_pdf_path = os.path.join(temp_dir, pdf_filename)
+                
+                docx_success, msg = _perform_conversion(input_path, temp_pdf_path)
                 if docx_success:
                     # Ambil path file PDF yang baru dikonversi
-                    pdf_filename = os.path.basename(input_path).replace(".docx", ".pdf")
-                    temp_pdf_path = os.path.join(temp_dir, pdf_filename)
                     pdf_files_to_merge.append(temp_pdf_path)
                 else:
                     success = False
@@ -108,5 +147,8 @@ def process_and_merge_mixed_files(file_list, output_path):
         # 3. Bersihkan folder sementara
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
+        # Pastikan untuk melepaskan COM setelah selesai
+        if com_initialized:
+            pythoncom.CoUninitialize()
             
     return success, "\n".join(messages)
