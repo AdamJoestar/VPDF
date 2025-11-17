@@ -42,8 +42,20 @@ def merge_pdfs():
 
 root = tk.Tk()
 root.title("DOCX to PDF Converter and PDF Merger")
-root.geometry("400x300")
-root.configure(bg='#f0f0f0')
+root.geometry("450x400")
+root.configure(bg='#ffffff')
+root.resizable(False, False)
+
+# Modern styling
+style = ttk.Style()
+style.configure('Modern.TButton',
+                font=('Segoe UI', 11, 'bold'),
+                padding=10,
+                relief='flat',
+                borderwidth=0)
+style.map('Modern.TButton',
+          background=[('active', "#000000b0"), ('!active', "#000000")],
+          foreground=[('active', 'white'), ('!active', 'white')])
 
 # Load logo image
 def resource_path(relative_path):
@@ -57,25 +69,43 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 logo_image = Image.open(resource_path("assets/logo vibia.png"))
-logo_image = logo_image.resize((200, 70), Image.Resampling.LANCZOS)
+logo_image = logo_image.resize((220, 75), Image.Resampling.LANCZOS)
 logo_photo = ImageTk.PhotoImage(logo_image)
 
+# Main container
+main_frame = tk.Frame(root, bg='#ffffff')
+main_frame.pack(fill='both', expand=True, padx=20, pady=20)
+
 # Logo image
-logo_label = tk.Label(root, image=logo_photo, bg='#f0f0f0')
-logo_label.pack(pady=10)
+logo_label = tk.Label(main_frame, image=logo_photo, bg='#ffffff')
+logo_label.pack(pady=(0, 15))
 
-# Text below logo
-text_label = tk.Label(root, text="PDF Tools", font=("Arial", 20, "bold"), bg='#f0f0f0', fg='#333')
-text_label.pack(pady=5)
+# Title with modern styling
+title_frame = tk.Frame(main_frame, bg='#ffffff')
+title_frame.pack(pady=(0, 25))
 
-# Frame for buttons
-frame = tk.Frame(root, bg='#f0f0f0')
-frame.pack(pady=20)
+text_label = tk.Label(title_frame, text="PDF Tools", font=("Segoe UI", 24, "bold"), bg='#ffffff', fg='#2d3748')
+text_label.pack()
 
-btn_convert = ttk.Button(frame, text="Convert DOCX to PDF", command=convert_docx_to_pdf, width=20)
-btn_convert.pack(pady=10)
+subtitle_label = tk.Label(title_frame, text="Convert and merge your documents", font=("Segoe UI", 10), bg='#ffffff', fg='#718096')
+subtitle_label.pack(pady=(5, 0))
 
-btn_merge = ttk.Button(frame, text="Merge PDFs", command=merge_pdfs, width=20)
-btn_merge.pack(pady=10)
+# Buttons container
+buttons_frame = tk.Frame(main_frame, bg='#ffffff')
+buttons_frame.pack(pady=(0, 20))
+
+# Convert button with icon-like styling
+btn_convert = ttk.Button(buttons_frame, text="📄 Convert DOCX to PDF",
+                        command=convert_docx_to_pdf, style='Modern.TButton')
+btn_convert.pack(fill='x', pady=(0, 15), ipady=8)
+
+# Merge button with icon-like styling
+btn_merge = ttk.Button(buttons_frame, text="📑 Merge PDFs",
+                      command=merge_pdfs, style='Modern.TButton')
+btn_merge.pack(fill='x', ipady=8)
+
+# Footer
+footer_label = tk.Label(main_frame, text="Ready to process your files", font=("Segoe UI", 9), bg='#ffffff', fg='#a0aec0')
+footer_label.pack(side='bottom', pady=(20, 0))
 
 root.mainloop()
