@@ -1,4 +1,0 @@
-PyQt5
-pypdf
-docx2pdf
-python-docx
