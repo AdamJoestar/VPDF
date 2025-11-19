@@ -9,7 +9,9 @@ import sys
 def convert_docx_to_pdf():
     file_path = filedialog.askopenfilename(filetypes=[("Word files", "*.docx")])
     if file_path:
-        output_path = file_path.replace('.docx', '.pdf')
+        file_path = os.path.abspath(file_path)
+        base, ext = os.path.splitext(file_path)
+        output_path = base + '.pdf'
         try:
             word = comtypes.client.CreateObject('Word.Application')
             doc = word.Documents.Open(file_path)
@@ -25,14 +27,14 @@ def convert_docx_to_pdf():
 
 def preview_merge():
     """Show preview of PDFs to be merged"""
-    files = filedialog.askopenfilenames(filetypes=[("PDF files", "*.pdf")])
+    files = list(filedialog.askopenfilenames(filetypes=[("PDF files", "*.pdf")]))
     if not files:
         return
 
     # Create preview window
     preview_window = tk.Toplevel(root)
     preview_window.title("Merge Preview")
-    preview_window.geometry("500x400")
+    preview_window.geometry("600x500")
     preview_window.configure(bg='#ffffff')
     preview_window.resizable(False, False)
     preview_window.transient(root)
@@ -48,12 +50,12 @@ def preview_merge():
     list_frame.pack(fill='both', expand=True, padx=20, pady=(0, 20))
 
     # Header
-    header_label = tk.Label(list_frame, text="Selected PDFs:", font=("Segoe UI", 12, "bold"),
+    header_label = tk.Label(list_frame, text="Selected PDFs (drag to reorder):", font=("Segoe UI", 12, "bold"),
                            bg='#ffffff', fg='#4a5568')
     header_label.pack(anchor='w', pady=(0, 10))
 
     # PDF list with scrollbar
-    canvas = tk.Canvas(list_frame, bg='#f7fafc', height=200)
+    canvas = tk.Canvas(list_frame, bg='#f7fafc', height=250)
     scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=canvas.yview)
     scrollable_frame = tk.Frame(canvas, bg='#f7fafc')
 
@@ -65,38 +67,81 @@ def preview_merge():
     canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
     canvas.configure(yscrollcommand=scrollbar.set)
 
-    # Add PDF info
-    total_pages = 0
-    for i, pdf_path in enumerate(files, 1):
-        try:
-            reader = PdfReader(pdf_path)
-            page_count = len(reader.pages)
-            total_pages += page_count
-            filename = os.path.basename(pdf_path)
-
-            # PDF item frame
-            item_frame = tk.Frame(scrollable_frame, bg='#f7fafc')
-            item_frame.pack(fill='x', pady=2)
-
-            # PDF info
-            info_text = f"{i}. {filename} - {page_count} pages"
-            info_label = tk.Label(item_frame, text=info_text, font=("Segoe UI", 10),
-                                bg='#f7fafc', fg='#2d3748', anchor='w')
-            info_label.pack(fill='x', padx=10, pady=2)
-
-        except Exception as e:
-            error_label = tk.Label(scrollable_frame, text=f"Error reading {os.path.basename(pdf_path)}: {str(e)}",
-                                 font=("Segoe UI", 9), bg='#fed7d7', fg='#c53030')
-            error_label.pack(fill='x', padx=10, pady=2)
-
     # Summary
     summary_frame = tk.Frame(list_frame, bg='#ffffff')
     summary_frame.pack(fill='x', pady=(10, 0))
 
-    summary_text = f"Total: {len(files)} files, {total_pages} pages"
-    summary_label = tk.Label(summary_frame, text=summary_text, font=("Segoe UI", 11, "bold"),
+    summary_label = tk.Label(summary_frame, text="", font=("Segoe UI", 11, "bold"),
                            bg='#ffffff', fg='#2d3748')
     summary_label.pack()
+
+    def refresh_display():
+        """Refresh the PDF list display after reordering"""
+        # Clear existing items
+        for widget in scrollable_frame.winfo_children():
+            widget.destroy()
+
+        # Re-add PDF info with updated order
+        total_pages = 0
+        for i, pdf_path in enumerate(files, 1):
+            idx = i - 1
+            try:
+                reader = PdfReader(pdf_path)
+                page_count = len(reader.pages)
+                total_pages += page_count
+                filename = os.path.basename(pdf_path)
+
+                # PDF item frame
+                item_frame = tk.Frame(scrollable_frame, bg='#f7fafc')
+                item_frame.pack(fill='x', pady=2)
+
+                # Buttons frame
+                buttons_frame = tk.Frame(item_frame, bg='#f7fafc')
+                buttons_frame.pack(side='right', padx=(0, 10))
+
+                # Up button
+                up_btn = tk.Button(buttons_frame, text="↑", command=lambda idx=idx: move_up(idx),
+                                  bg='#e2e8f0', fg='#4a5568', font=('Segoe UI', 8, 'bold'),
+                                  relief='flat', borderwidth=1, padx=5, pady=2,
+                                  activebackground='#cbd5e0', activeforeground='#2d3748')
+                up_btn.pack(side='top', pady=(0, 2))
+
+                # Down button
+                down_btn = tk.Button(buttons_frame, text="↓", command=lambda idx=idx: move_down(idx),
+                                    bg='#e2e8f0', fg='#4a5568', font=('Segoe UI', 8, 'bold'),
+                                    relief='flat', borderwidth=1, padx=5, pady=2,
+                                    activebackground='#cbd5e0', activeforeground='#2d3748')
+                down_btn.pack(side='top')
+
+                # PDF info
+                info_text = f"{i}. {filename} - {page_count} pages"
+                info_label = tk.Label(item_frame, text=info_text, font=("Segoe UI", 10),
+                                    bg='#f7fafc', fg='#2d3748', anchor='w')
+                info_label.pack(side='left', fill='x', padx=10, pady=2)
+
+            except Exception as e:
+                error_label = tk.Label(scrollable_frame, text=f"Error reading {os.path.basename(pdf_path)}: {str(e)}",
+                                     font=("Segoe UI", 9), bg='#fed7d7', fg='#c53030')
+                error_label.pack(fill='x', padx=10, pady=2)
+
+        # Update summary
+        summary_text = f"Total: {len(files)} files, {total_pages} pages"
+        summary_label.config(text=summary_text)
+
+    def move_up(index):
+        """Move PDF up in the list"""
+        if index > 0:
+            files[index], files[index-1] = files[index-1], files[index]
+            refresh_display()
+
+    def move_down(index):
+        """Move PDF down in the list"""
+        if index < len(files) - 1:
+            files[index], files[index+1] = files[index+1], files[index]
+            refresh_display()
+
+    # Initial display
+    refresh_display()
 
     # Buttons
     button_frame = tk.Frame(preview_window, bg='#ffffff')
